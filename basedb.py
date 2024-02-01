@@ -59,7 +59,7 @@ class BaseModel:
             self._conn.commit()
         except Exception as e:
             self.rollback()
-            raise Exception('db commit failed:\n{}'.formate(e))
+            raise ConnectionAbortedError(str(e))
 
     def begin(self):
         if self._conn:
@@ -72,8 +72,6 @@ class BaseModel:
                     self.cursor.execute('UNLOCK TABLES;')
                     self.cursor.close()
                 self._conn.close()
-        except Exception as e:
-            raise Exception('db close failed:\n{}'.formate(e))
         finally:
             self.cursor = None
             self._conn = None
@@ -84,7 +82,7 @@ class BaseModel:
         except Exception as e:
             self.rollback()
             self.close()
-            raise Exception('db execute failed:\n{}'.formate(e))
+            raise ConnectionAbortedError(str(e))
 
     def executemany(self, sql_str, values=None):
         try:
@@ -92,7 +90,7 @@ class BaseModel:
         except Exception as e:
             self.rollback()
             self.close()
-            raise Exception('db executemany failed:\n{}'.formate(e))
+            raise ConnectionAbortedError(str(e))
 
 
 class DBConnection:
@@ -104,13 +102,10 @@ class DBConnection:
         self._conn.commit()
 
     def __enter__(self):
-        try:
-            if not self.cursor:
-                if not self._conn:
-                    self._conn = create_dbconn_mysql()
-                self.cursor = self._conn.cursor()
-        except:
-            raise Exception('db connection failed')
+        if not self.cursor:
+            if not self._conn:
+                self._conn = create_dbconn_mysql()
+            self.cursor = self._conn.cursor()
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
@@ -120,8 +115,6 @@ class DBConnection:
                     self.cursor.execute('UNLOCK TABLES;')
                     self.cursor.close()
                 self._conn.close()
-        except:
-            raise Exception('db close failed')
         finally:
             self._conn = None
             self.cursor = None
